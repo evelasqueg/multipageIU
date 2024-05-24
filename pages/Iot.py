@@ -1,4 +1,6 @@
 import streamlit as st
+image = Image.open('IoT.png')
+st.image(image)
 
 st.title ("Internet de las cosas")
 
