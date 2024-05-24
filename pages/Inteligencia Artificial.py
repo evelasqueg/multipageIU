@@ -1,60 +1,42 @@
 import streamlit as st
-import os
-#from dotenv import load_dotenv
-import streamlit as st
-import PyPDF2
-from PyPDF2 import PdfReader
-from langchain.text_splitter import CharacterTextSplitter
-from langchain.embeddings.openai import OpenAIEmbeddings
-from langchain.vectorstores import FAISS
-from langchain.chains.question_answering import load_qa_chain
-from langchain.llms import OpenAI
-from langchain.callbacks import get_openai_callback
+import cv2
+import numpy as np
+#from PIL import Image
+from PIL import Image as Image, ImageOps as ImagOps
+from keras.models import load_model
 
 st.title ("Inteligencia Artificial")
 
-#import pickle5 as pickle
-#from pathlib import Path
+st.write ("La inteligencia artificial se encarga de crear sistemas que puedan realizar tareas que normalmente requieren inteligencia humana, facilitando los trabajos diarios y optimizando procesos.")
+model = load_model('keras_model.h5')
+data = np.ndarray(shape=(1, 224, 224, 3), dtype=np.float32)
 
-st.title('Chatea con tu PDF 💬')
-ke = st.text_input('Ingresa tu Clave')
-#os.environ['OPENAI_API_KEY'] = st.secrets['OPENAI_API_KEY']
-os.environ['OPENAI_API_KEY'] = ke
+st.title("Reconocimiento de Imágenes")
 
-pdfFileObj = open('example.pdf', 'rb')
- 
-# creating a pdf reader object
-pdfReader = PyPDF2.PdfReader(pdfFileObj)
+img_file_buffer = st.camera_input("Toma una Foto")
 
+if img_file_buffer is not None:
+    # To read image file buffer with OpenCV:
+    data = np.ndarray(shape=(1, 224, 224, 3), dtype=np.float32)
+   #To read image file buffer as a PIL Image:
+    img = Image.open(img_file_buffer)
 
-    # upload file
-pdf = st.file_uploader("Carga el archivo PDF", type="pdf")
+    newsize = (224, 224)
+    img = img.resize(newsize)
+    # To convert PIL Image to numpy array:
+    img_array = np.array(img)
 
-   # extract the text
-if pdf is not None:
-      from langchain.text_splitter import CharacterTextSplitter
-      pdf_reader = PdfReader(pdf)
-      text = ""
-      for page in pdf_reader.pages:
-         text += page.extract_text()
+    # Normalize the image
+    normalized_image_array = (img_array.astype(np.float32) / 127.0) - 1
+    # Load the image into the array
+    data[0] = normalized_image_array
 
-   # split into chunks
-      text_splitter = CharacterTextSplitter(separator="\n",chunk_size=500,chunk_overlap=20,length_function=len)
-      chunks = text_splitter.split_text(text)
-
-# create embeddings
-      embeddings = OpenAIEmbeddings()
-      knowledge_base = FAISS.from_texts(chunks, embeddings)
-
-# show user input
-      st.subheader("Escribe que quieres saber sobre el documento")
-      user_question = st.text_input(" ")
-      if user_question:
-        docs = knowledge_base.similarity_search(user_question)
-
-        llm = OpenAI(model_name="gpt-4")
-        chain = load_qa_chain(llm, chain_type="stuff")
-        with get_openai_callback() as cb:
-          response = chain.run(input_documents=docs, question=user_question)
-          print(cb)
-        st.write(response)
+    # run the inference
+    prediction = model.predict(data)
+    print(prediction)
+    if prediction[0][0]>0.5:
+      st.header('Todo bien')
+    if prediction[0][1]>0.5:
+      st.header('Todo mal')
+    #if prediction[0][2]>0.5:
+    # st.header('Derecha, con Probabilidad: '+str( prediction[0][2]))
